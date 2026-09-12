@@ -1,4 +1,4 @@
-# Handbill Generator
+# Nudge
 
 A phone-first web app for turning a photo of a food-distributor PO invoice
 into a completed "handbill" PDF and emailing it out.
