@@ -3,75 +3,18 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
-// Customer accounts, editable via the /customers admin screen.
+// The only data this app persists: customer accounts, editable via the
+// /customers admin screen and used to fuzzy-match names read off invoices.
+// Everything else (uploaded photos, extracted fields, generated handbills,
+// send results) is handled in a single request and never stored — once a
+// handbill is sent, it's sent.
 model Customer {
   id            String   @id @default(cuid())
   name          String
   accountNumber String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  invoices      Invoice[]
-}
-
-// One uploaded PO invoice photo, its extracted data, and the resulting handbill.
-// status: PENDING_REVIEW | SENT | FAILED
-// format: YELLOW | WHITE
-model Invoice {
-  id     String @id @default(cuid())
-  status String @default("PENDING_REVIEW")
-  format String
-
-  photoPath     String
-  photoMimeType String
-  rawExtraction String? // raw JSON returned by the vision extraction call, kept for troubleshooting
-
-  customerNameRaw         String? // shorthand/handwritten name as read off the photo
-  customerNameNeedsReview Boolean @default(false)
-  customerId              String?
-  customer                Customer? @relation(fields: [customerId], references: [id])
-
-  purchaseOrder            String
-  purchaseOrderNeedsReview Boolean @default(false)
-  deliveryDate             String
-
-  pdfPath String?
-
-  lineItems InvoiceLineItem[]
-  emailLogs EmailLog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model InvoiceLineItem {
-  id          String  @id @default(cuid())
-  invoiceId   String
-  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  quantity    String
-  description String
-  sortOrder   Int     @default(0)
-}
-
-// One send attempt (office copy, and second-contact copy for yellow invoices).
-model EmailLog {
-  id        String   @id @default(cuid())
-  invoiceId String
-  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  recipient String
-  subject   String
-  label     String // "Office Copy" | "Second Contact Copy"
-  success   Boolean
-  error     String?
-  sentAt    DateTime @default(now())
-}
-
-// Singleton row (id always 1) holding the configurable send-to addresses.
-model Settings {
-  id                 Int      @id @default(1)
-  officeEmail        String
-  secondContactEmail String
-  updatedAt          DateTime @updatedAt
 }

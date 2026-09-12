@@ -9,14 +9,15 @@
     "lint": "eslint",
     "db:migrate": "dotenv -e .env -- prisma migrate dev",
     "db:studio": "dotenv -e .env -- prisma studio",
-    "postinstall": "dotenv -e .env -- prisma generate"
+    "postinstall": "dotenv -e .env -- prisma generate",
+    "vercel-build": "dotenv -e .env -- prisma migrate deploy && next build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
-    "@libsql/client": "^0.18.0",
-    "@prisma/adapter-libsql": "^7.10.0",
+    "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "@sendgrid/mail": "^8.1.5",
+    "pg": "^8.23.0",
     "next": "16.2.4",
     "pdf-lib": "^1.17.1",
     "react": "19.2.4",
@@ -26,6 +27,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
+    "@types/pg": "^8.23.1",
     "@types/react-dom": "^19",
     "dotenv-cli": "^11.0.0",
     "eslint": "^9",

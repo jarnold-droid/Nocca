@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { savePhoto } from "@/lib/storage";
 import { extractInvoiceFromImage, type InvoiceFormat } from "@/lib/extractInvoice";
 import { matchCustomers } from "@/lib/fuzzyMatch";
 
-const EXTENSION_BY_MIME: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/heic": "heic",
-};
-
+// Stateless: the photo is used once for the vision call and then discarded —
+// nothing about the invoice is persisted anywhere.
 export async function POST(request: Request) {
   const formData = await request.formData();
   const file = formData.get("photo");
@@ -31,10 +25,7 @@ export async function POST(request: Request) {
 
   const bytes = Buffer.from(await file.arrayBuffer());
   const mimeType = file.type || "image/jpeg";
-  const extension = EXTENSION_BY_MIME[mimeType] ?? "jpg";
 
-  // Run extraction before persisting anything, so a failed call doesn't leave an orphaned
-  // photo file / invoice row with no data behind it.
   let extraction;
   try {
     extraction = await extractInvoiceFromImage(bytes, mimeType, orientationGuess);
@@ -45,36 +36,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const photoPath = await savePhoto(bytes, extension);
-
-  const invoice = await prisma.invoice.create({
-    data: {
-      status: "PENDING_REVIEW",
-      format: extraction.format,
-      photoPath,
-      photoMimeType: mimeType,
-      rawExtraction: JSON.stringify(extraction),
-      customerNameRaw: extraction.customerName,
-      customerNameNeedsReview: extraction.customerNameNeedsReview,
-      purchaseOrder: extraction.purchaseOrder,
-      purchaseOrderNeedsReview: extraction.purchaseOrderNeedsReview,
-      deliveryDate: extraction.deliveryDate,
-      lineItems: {
-        create: extraction.lineItems.map((item, index) => ({
-          quantity: item.quantity,
-          description: item.description,
-          sortOrder: index,
-        })),
-      },
-    },
-    include: { lineItems: true },
-  });
-
   const customers = await prisma.customer.findMany();
   const matches = matchCustomers(
     extraction.customerName,
     customers.map((c) => ({ id: c.id, name: c.name, accountNumber: c.accountNumber }))
   );
 
-  return NextResponse.json({ invoice, extraction, matches });
+  return NextResponse.json({ extraction, matches });
 }

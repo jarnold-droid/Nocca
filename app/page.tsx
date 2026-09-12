@@ -16,8 +16,7 @@ interface MatchCandidate {
   score: number;
 }
 
-interface UploadResponse {
-  invoice: { id: string };
+interface ExtractResponse {
   extraction: {
     format: InvoiceFormat;
     customerName: string;
@@ -62,7 +61,6 @@ export default function Home() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [format, setFormat] = useState<InvoiceFormat>("WHITE");
   const [customerNameInput, setCustomerNameInput] = useState("");
   const [customerNameConfirmed, setCustomerNameConfirmed] = useState(false);
@@ -105,13 +103,12 @@ export default function Home() {
     formData.append("height", String(height));
 
     try {
-      const res = await fetch("/api/invoices/upload", { method: "POST", body: formData });
+      const res = await fetch("/api/extract", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Extraction failed");
       }
-      const payload = data as UploadResponse;
-      setInvoiceId(payload.invoice.id);
+      const payload = data as ExtractResponse;
       setFormat(payload.extraction.format);
       setCustomerNameInput(payload.extraction.customerName);
       setCustomerNameConfirmed(!payload.extraction.customerNameNeedsReview);
@@ -153,11 +150,10 @@ export default function Home() {
     lineItems.some((item) => item.description.trim().length > 0);
 
   async function handleConfirmAndSend() {
-    if (!invoiceId) return;
     setStage("submitting");
     setErrorMessage("");
     try {
-      const res = await fetch(`/api/invoices/${invoiceId}/confirm`, {
+      const res = await fetch("/api/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -184,7 +180,6 @@ export default function Home() {
   function startOver() {
     setStage("capture");
     setPreviewUrl(null);
-    setInvoiceId(null);
     setCustomerNameInput("");
     setCustomerNameConfirmed(false);
     setPurchaseOrder("");
@@ -270,21 +265,9 @@ export default function Home() {
             </li>
           ))}
         </ul>
-        <div className="flex gap-4">
-          {invoiceId && (
-            <a
-              href={`/api/invoices/${invoiceId}/pdf`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-blue-700 underline"
-            >
-              View handbill PDF
-            </a>
-          )}
-          <button onClick={startOver} className="text-blue-700 underline">
-            Process another invoice
-          </button>
-        </div>
+        <button onClick={startOver} className="text-blue-700 underline">
+          Process another invoice
+        </button>
       </div>
     );
   }

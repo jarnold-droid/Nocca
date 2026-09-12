@@ -17,14 +17,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               Handbill
             </Link>
             <div className="flex gap-4 text-sm text-slate-600">
-              <Link href="/invoices" className="hover:text-blue-700">
-                Log
-              </Link>
               <Link href="/customers" className="hover:text-blue-700">
                 Customers
-              </Link>
-              <Link href="/settings" className="hover:text-blue-700">
-                Settings
               </Link>
             </div>
           </nav>
