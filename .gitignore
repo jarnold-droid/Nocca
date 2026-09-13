@@ -34,8 +34,14 @@ yarn-error.log*
 dev.db
 dev.db-journal
 
+# Uploaded photos and generated handbill PDFs
+/storage/
+
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+
+# TypeScript incremental build info
+*.tsbuildinfo

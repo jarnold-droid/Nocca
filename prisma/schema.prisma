@@ -3,56 +3,18 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
 }
 
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  password      String
-  graduationYear Int?
-  bio           String?
-  profileImage  String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  stories       Story[]
-  testimonials  Testimonial[]
-  connections   Connection[] @relation("follower")
-  followers     Connection[] @relation("following")
-}
-
-model Story {
-  id        String    @id @default(cuid())
-  title     String
-  content   String
-  media     String[]  // URLs to uploaded images
-  authorId  String
-  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  approved  Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-}
-
-model Testimonial {
-  id        String    @id @default(cuid())
-  content   String
-  authorId  String
-  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  approved  Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-}
-
-model Connection {
-  id          String    @id @default(cuid())
-  followerId  String
-  follower    User      @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
-  followingId String
-  following   User      @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
-  createdAt   DateTime  @default(now())
-
-  @@unique([followerId, followingId])
+// The only data this app persists: customer accounts, editable via the
+// /customers admin screen and used to fuzzy-match names read off invoices.
+// Everything else (uploaded photos, extracted fields, generated handbills,
+// send results) is handled in a single request and never stored — once a
+// handbill is sent, it's sent.
+model Customer {
+  id            String   @id @default(cuid())
+  name          String
+  accountNumber String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
