@@ -72,6 +72,8 @@ export default function Home() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [sendResults, setSendResults] = useState<SendResult[]>([]);
+  const [sentPdfUrl, setSentPdfUrl] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState(false);
 
   const refreshMatches = useCallback(async (name: string) => {
     if (!name.trim()) {
@@ -142,12 +144,47 @@ export default function Home() {
     setLineItems((items) => items.filter((_, i) => i !== index));
   }
 
-  const canSubmit =
-    customerNameConfirmed &&
-    purchaseOrderConfirmed &&
+  const hasMinimumFields =
     customerNameInput.trim().length > 0 &&
     purchaseOrder.trim().length > 0 &&
     lineItems.some((item) => item.description.trim().length > 0);
+
+  const canSubmit = customerNameConfirmed && purchaseOrderConfirmed && hasMinimumFields;
+
+  function buildHandbillRequestBody() {
+    return {
+      format,
+      customerId: selectedCustomerId,
+      customerName: customerNameInput.trim(),
+      purchaseOrder: purchaseOrder.trim(),
+      deliveryDate: deliveryDate.trim(),
+      lineItems: lineItems.filter((item) => item.description.trim().length > 0),
+    };
+  }
+
+  async function handlePreview() {
+    setPreviewing(true);
+    setErrorMessage("");
+    try {
+      const res = await fetch("/api/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildHandbillRequestBody()),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to generate preview");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPreviewing(false);
+    }
+  }
 
   async function handleConfirmAndSend() {
     setStage("submitting");
@@ -156,20 +193,15 @@ export default function Home() {
       const res = await fetch("/api/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          format,
-          customerId: selectedCustomerId,
-          customerName: customerNameInput.trim(),
-          purchaseOrder: purchaseOrder.trim(),
-          deliveryDate: deliveryDate.trim(),
-          lineItems: lineItems.filter((item) => item.description.trim().length > 0),
-        }),
+        body: JSON.stringify(buildHandbillRequestBody()),
       });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Failed to send handbill");
       }
       setSendResults(data.sendResults);
+      const bytes = Uint8Array.from(atob(data.pdfBase64), (c) => c.charCodeAt(0));
+      setSentPdfUrl(URL.createObjectURL(new Blob([bytes], { type: "application/pdf" })));
       setStage("done");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : String(err));
@@ -189,6 +221,8 @@ export default function Home() {
     setMatches([]);
     setSelectedCustomerId(null);
     setSendResults([]);
+    if (sentPdfUrl) URL.revokeObjectURL(sentPdfUrl);
+    setSentPdfUrl(null);
     setErrorMessage("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
@@ -265,6 +299,16 @@ export default function Home() {
             </li>
           ))}
         </ul>
+        {sentPdfUrl && (
+          <a
+            href={sentPdfUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="block text-blue-700 underline"
+          >
+            View the handbill that was sent
+          </a>
+        )}
         <button onClick={startOver} className="text-blue-700 underline">
           Process another invoice
         </button>
@@ -424,6 +468,15 @@ export default function Home() {
           + Add line item
         </button>
       </div>
+
+      <button
+        type="button"
+        onClick={handlePreview}
+        disabled={!hasMinimumFields || previewing}
+        className="w-full border border-blue-300 text-blue-700 rounded-lg py-2 font-medium disabled:opacity-40"
+      >
+        {previewing ? "Generating preview…" : "Preview handbill PDF"}
+      </button>
 
       {errorMessage && (
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm">
