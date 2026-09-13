@@ -8,6 +8,14 @@ export interface SendResult {
   error?: string;
 }
 
+/** OFFICE_EMAIL / SECOND_CONTACT_EMAIL may each be a comma-separated list of addresses. */
+function parseEmailList(value: string): string[] {
+  return value
+    .split(",")
+    .map((email) => email.trim())
+    .filter(Boolean);
+}
+
 interface SendHandbillArgs {
   format: "YELLOW" | "WHITE";
   customerName: string;
@@ -56,9 +64,11 @@ export async function sendHandbillEmails(args: SendHandbillArgs): Promise<SendRe
   }
   sgMail.setApiKey(apiKey);
 
-  const recipients: { email: string; label: string }[] = [{ email: officeEmail, label: "Office Copy" }];
+  const recipients: { emails: string[]; label: string }[] = [
+    { emails: parseEmailList(officeEmail), label: "Office Copy" },
+  ];
   if (args.format === "YELLOW") {
-    recipients.push({ email: secondContactEmail, label: "Second Contact Copy" });
+    recipients.push({ emails: parseEmailList(secondContactEmail), label: "Second Contact Copy" });
   }
 
   const results: SendResult[] = [];
@@ -71,7 +81,7 @@ export async function sendHandbillEmails(args: SendHandbillArgs): Promise<SendRe
 
     try {
       await sgMail.send({
-        to: recipient.email,
+        to: recipient.emails,
         from,
         subject,
         text: body,
@@ -84,10 +94,15 @@ export async function sendHandbillEmails(args: SendHandbillArgs): Promise<SendRe
           },
         ],
       });
-      results.push({ recipient: recipient.email, label: recipient.label, subject, success: true });
+      results.push({
+        recipient: recipient.emails.join(", "),
+        label: recipient.label,
+        subject,
+        success: true,
+      });
     } catch (err) {
       results.push({
-        recipient: recipient.email,
+        recipient: recipient.emails.join(", "),
         label: recipient.label,
         subject,
         success: false,
