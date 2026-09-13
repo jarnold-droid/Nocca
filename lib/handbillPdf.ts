@@ -34,32 +34,39 @@ const COLUMNS = {
 };
 
 // Blank line after "CUSTOMER SIGNATURE" on the template.
-const SIGNATURE_LINE = { x0: 180, x1: 340, yTop: 546 };
+const SIGNATURE_LINE = { x0: 182, x1: 340, yTop: 542 };
 
 /**
- * Draws a generic pen-stroke squiggle on the signature line — not a captured signature,
- * just a mark so the handbill doesn't go out with an obviously blank line. Randomized
- * slightly so a batch of handbills doesn't all carry the exact same stamped-looking mark.
+ * Draws a generic loopy pen-stroke mark on the signature line — not a captured signature,
+ * just a mark so the handbill doesn't go out with an obviously blank line. Built from
+ * randomized, tilted cursive-style loops (via SVG elliptical arcs) with entry/exit flourish
+ * strokes, so it reads as an actual signature rather than a wavy line, and no two handbills
+ * carry the exact same stamped-looking mark.
  */
 function drawSignatureScribble(page: PDFPage, x: number, yTop: number) {
   const jitter = (range: number) => (Math.random() - 0.5) * range;
-  let path = `M0,${jitter(4)}`;
-  const segments = 4 + Math.round(Math.random());
-  for (let i = 0; i < segments; i++) {
-    const dx1 = 8 + jitter(3);
-    const dy1 = -16 + jitter(6);
-    const dx2 = 8 + jitter(3);
-    const dy2 = 14 + jitter(6);
-    const dx3 = 8 + jitter(3);
-    const dy3 = jitter(6);
-    path += ` c${dx1},${dy1} ${dx1 + dx2},${dy1 + dy2} ${dx1 + dx2 + dx3},${dy1 + dy2 + dy3}`;
+
+  let path = `M0,0 c4,-3 8,-4 12,${(-2 + jitter(3)).toFixed(1)}`;
+
+  const loopCount = 4 + Math.round(Math.random());
+  for (let i = 0; i < loopCount; i++) {
+    const rx = 4 + Math.random() * 2.5;
+    const ry = 8 + Math.random() * 6;
+    const rotation = -15 + jitter(30);
+    const hopX = 7 + Math.random() * 5;
+    const hopY = jitter(8);
+    path += ` a${rx.toFixed(1)},${ry.toFixed(1)} ${rotation.toFixed(0)} 1 1 ${jitter(2).toFixed(1)},${(-ry * 2).toFixed(1)}`;
+    path += ` a${rx.toFixed(1)},${ry.toFixed(1)} ${rotation.toFixed(0)} 1 1 ${jitter(2).toFixed(1)},${(ry * 2).toFixed(1)}`;
+    path += ` c2,${(-2 + jitter(4)).toFixed(1)} ${(hopX * 0.6).toFixed(1)},${(hopY * 0.5 - 3).toFixed(1)} ${hopX.toFixed(1)},${hopY.toFixed(1)}`;
   }
+
+  path += ` c6,2 12,-6 18,${jitter(4).toFixed(1)}`; // exit flourish
 
   page.drawSvgPath(path, {
     x,
     y: topDown(yTop),
     borderColor: rgb(0.15, 0.15, 0.45),
-    borderWidth: 1.3,
+    borderWidth: 1.1,
   });
 }
 
