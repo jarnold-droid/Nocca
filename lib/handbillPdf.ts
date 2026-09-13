@@ -1,4 +1,4 @@
-import { PDFDocument, PDFFont, StandardFonts } from "pdf-lib";
+import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import { readFile } from "fs/promises";
 import path from "path";
 
@@ -32,6 +32,36 @@ const COLUMNS = {
   qty: { x0: 117.2, x1: 152.8 },
   description: { x0: 153.2 + 6, x1: 409.3 - 4 },
 };
+
+// Blank line after "CUSTOMER SIGNATURE" on the template.
+const SIGNATURE_LINE = { x0: 180, x1: 340, yTop: 546 };
+
+/**
+ * Draws a generic pen-stroke squiggle on the signature line — not a captured signature,
+ * just a mark so the handbill doesn't go out with an obviously blank line. Randomized
+ * slightly so a batch of handbills doesn't all carry the exact same stamped-looking mark.
+ */
+function drawSignatureScribble(page: PDFPage, x: number, yTop: number) {
+  const jitter = (range: number) => (Math.random() - 0.5) * range;
+  let path = `M0,${jitter(4)}`;
+  const segments = 4 + Math.round(Math.random());
+  for (let i = 0; i < segments; i++) {
+    const dx1 = 8 + jitter(3);
+    const dy1 = -16 + jitter(6);
+    const dx2 = 8 + jitter(3);
+    const dy2 = 14 + jitter(6);
+    const dx3 = 8 + jitter(3);
+    const dy3 = jitter(6);
+    path += ` c${dx1},${dy1} ${dx1 + dx2},${dy1 + dy2} ${dx1 + dx2 + dx3},${dy1 + dy2 + dy3}`;
+  }
+
+  page.drawSvgPath(path, {
+    x,
+    y: topDown(yTop),
+    borderColor: rgb(0.15, 0.15, 0.45),
+    borderWidth: 1.3,
+  });
+}
 
 export interface HandbillLineItem {
   quantity: string;
@@ -86,6 +116,7 @@ export async function generateHandbillPdf(data: HandbillData): Promise<Uint8Arra
     draw(data.accountNumber, HEADER_FIELDS.acctNumber.x, HEADER_FIELDS.acctNumber.yTop, HEADER_FIELDS.acctNumber.size);
     draw(data.deliveryDate, HEADER_FIELDS.deliveryDate.x, HEADER_FIELDS.deliveryDate.yTop, HEADER_FIELDS.deliveryDate.size);
     draw(data.purchaseOrder, HEADER_FIELDS.purchaseOrder.x, HEADER_FIELDS.purchaseOrder.yTop, HEADER_FIELDS.purchaseOrder.size);
+    drawSignatureScribble(page, SIGNATURE_LINE.x0, SIGNATURE_LINE.yTop);
 
     const pageItems = lineItems.slice(pageIndex * HANDBILL_ROWS_PER_PAGE, (pageIndex + 1) * HANDBILL_ROWS_PER_PAGE);
     pageItems.forEach((item, rowIndex) => {
